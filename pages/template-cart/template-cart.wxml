@@ -18,12 +18,12 @@
             <view class="a-goods-conts {{item.active? 'active':''}}" bindtap="selectTap" bindtouchstart="touchS" bindtouchmove="touchM" bindtouchend="touchE" data-index="{{index}}"    style="{{item.left}}">
                 <view class="goods-info">
                     <view class="img-box">
-                        <image src="{{item.pic}}" class="img"/>
+                        <image src="{{item.product.pics[0]}}" class="img"/>
                     </view>
                     <view class="text-box">
-                        <view class="goods-title">{{item.name}}</view>
-                        <view class="goods-label">{{item.label}}</view>
-                        <view class="goods-price">¥ {{item.price}}</view>
+                        <view class="goods-title">{{item.product.name}}</view>
+                        <view class="goods-label">{{item.sku.normData}}</view>
+                        <view class="goods-price">¥ {{item.product.shopPrice}}</view>
                         <view class="buy-num">
                             <view class="jian-btn {{item.number==1? 'disabled' : ''}}" catchtap="jianBtnTap" data-index="{{index}}">-</view>
                             <input  type="number" value="{{item.number}}" disabled/>
@@ -40,7 +40,9 @@
     <view class="jiesuan-box">
         <view class="left-price">
             <view class="all-selected  {{allSelect?'active':''}}" bindtap="bindAllSelect">全选</view>
-            <view class="total" hidden="{{noSelect}}">合计：¥ {{totalPrice}} + {{totalScoreToPay}} 积分</view>
+            <view class="total" hidden="{{noSelect}}">合计：¥ {{totalPrice}} 
+            <!-- + {{totalScoreToPay}} 积分 -->
+            </view>
         </view>
         <view class="to-pay-btn {{noSelect?'no-select':''}}" hidden="{{!saveHidden}}" bindtap="toPayOrder">去结算</view>
         <view class="to-pay-btn {{noSelect?'no-select':''}}" hidden="{{saveHidden}}" bindtap="deleteSelected">删除</view>

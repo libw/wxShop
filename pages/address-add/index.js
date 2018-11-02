@@ -61,7 +61,9 @@ Page({
     if (this.data.selDistrict == "请选择" || !this.data.selDistrict) {
       districtId = '';
     } else {
+      console.log(1)
       districtId = commonCityData.cityData[this.data.selProvinceIndex].cityList[this.data.selCityIndex].districtList[this.data.selDistrictIndex].id;
+      console.log(2)
     }
     if (address == "") {
       wx.showModal({
@@ -80,43 +82,72 @@ Page({
       return
     }
     //判断添加还是编辑地址
-    var apiAddoRuPDATE = "add";
+
     var apiAddid = that.data.id;
+
     if (apiAddid) {
-      apiAddoRuPDATE = "update";
-    } else {
-      apiAddid = 0;
-    }
-    wx.request({
-      //添加或者编辑地址
-      url: 'https://api.it120.cc/' + app.globalData.subDomain + '/user/shipping-address/' + apiAddoRuPDATE,
-      data: {
-        token: wx.getStorageSync('token'),
-        id: apiAddid,
-        provinceId: commonCityData.cityData[this.data.selProvinceIndex].id,
-        cityId: cityId,
-        districtId: districtId,
-        linkMan: linkMan,
-        address: address,
-        mobile: mobile,
-        code: code,
-        isDefault: 'true'
-      },
-      success: function(res) {
-        if (res.data.code != 0) {
-          // 登录错误 
-          wx.hideLoading();
-          wx.showModal({
-            title: '失败',
-            content: res.data.msg,
-            showCancel: false
-          })
-          return;
+      //编辑地址
+      wx.request({
+        url: 'http://47.99.112.182:4030/v1/address/' + apiAddid,
+        method:'PUT',
+        data: {
+          userID: wx.getStorageSync('user').id,
+          provinceID: commonCityData.cityData[this.data.selProvinceIndex].id,
+          cityID: cityId,
+          districtID: districtId,
+          consignee: linkMan,
+          address: address,
+          phone: mobile,
+          countryID:86
+        },
+        success: function(res) {
+          if (res.data.code != 0) {
+            // 登录错误 
+            wx.hideLoading();
+            wx.showModal({
+              title: '失败',
+              content: res.data.msg,
+              showCancel: false
+            })
+            return;
+          }
+          // 跳转到结算页面
+          wx.navigateBack({})
         }
-        // 跳转到结算页面
-        wx.navigateBack({})
-      }
-    })
+      })
+    } else {
+      //添加地址
+      wx.request({
+        //添加或者编辑地址
+        url: 'http://47.99.112.182:4030/v1/address/',
+        method:'POST',
+        data: {
+          userID: wx.getStorageSync('user').id,
+          provinceID: commonCityData.cityData[this.data.selProvinceIndex].id,
+          cityID: cityId,
+          districtID: districtId,
+          consignee: linkMan,
+          address: address,
+          phone: mobile,
+          countryID: 86
+        },
+        success: function(res) {
+          if (res.data.code != 0) {
+            // 登录错误 
+            wx.hideLoading();
+            wx.showModal({
+              title: '失败',
+              content: res.data.msg,
+              showCancel: false
+            })
+            return;
+          }
+          // 跳转到结算页面
+          wx.navigateBack({})
+        }
+      })
+    }
+
   },
   //初始化城市信息，将引入js中内容填充
   initCityData: function(level, obj) {
@@ -187,27 +218,52 @@ Page({
     var that = this;
     this.initCityData(1);
     var id = e.id;
-    //判断是否为编辑地址
+    //判断是否为编辑地址 
     if (id) {
       // 初始化原数据
+
+      wx.setNavigationBarTitle({
+        title: '编辑地址',
+      })
       wx.showLoading();
       wx.request({
-        //获取地址信息
-        url: 'https://api.it120.cc/' + app.globalData.subDomain + '/user/shipping-address/detail',
-        data: {
-          token: wx.getStorageSync('token'),
-          id: id
-        },
+        //获取地址信息   /address/:id
+        url: 'http://47.99.112.182:4030/v1/address/' + id,
         success: function(res) {
           wx.hideLoading();
           if (res.data.code == 0) {
             that.setData({
               id: id,
               addressData: res.data.data,
-              selProvince: res.data.data.provinceStr,
-              selCity: res.data.data.cityStr,
-              selDistrict: res.data.data.areaStr
             });
+
+            //读取地区名称
+            for (var i = 0; i < commonCityData.cityData.length; i++) {
+              if (commonCityData.cityData[i].id == that.data.addressData.provinceID) {
+                that.setData({
+                  selProvince: commonCityData.cityData[i].name,
+                  selProvinceIndex: i
+                })
+                for (var j = 0; j < commonCityData.cityData[i].cityList.length; j++) {
+                  if (commonCityData.cityData[i].cityList[j].id == that.data.addressData.cityID) {
+                    that.setData({
+                      selCity: commonCityData.cityData[i].cityList[j].name,
+                      selCityIndex: j
+                    })
+                    for (var k = 0; k < commonCityData.cityData[i].cityList[j].districtList.length; k++) {
+                      if (commonCityData.cityData[i].cityList[j].districtList[k].id == that.data.addressData.districtID) {
+                        that.setData({
+                          selDistrict: commonCityData.cityData[i].cityList[j].districtList[k].name, selDistrictIndex: k
+                        })
+                      }
+                    }
+                  }
+
+                }
+              }
+
+            }
+
             that.setDBSaveAddressId(res.data.data);
             return;
           } else {
@@ -219,6 +275,7 @@ Page({
           }
         }
       })
+     
     }
   },
   //点击选择地址时，地址的处理
@@ -254,10 +311,10 @@ Page({
       success: function(res) {
         if (res.confirm) {
           wx.request({
-            //删除地址
-            url: 'https://api.it120.cc/' + app.globalData.subDomain + '/user/shipping-address/delete',
+            //删除地址   /address/:id
+            url: 'http://47.99.112.182:4030/v1/address/' + id,
+            method: 'DELETE',
             data: {
-              token: wx.getStorageSync('token'),
               id: id
             },
             success: (res) => {
@@ -271,54 +328,54 @@ Page({
     })
   },
   //点击从微信读取地址
-  readFromWx: function() {
-    let that = this;
-    wx.chooseAddress({
-      success: function(res) {
-        //将微信的地址在地址js中循环，然后渲染展示
-        let provinceName = res.provinceName;
-        let cityName = res.cityName;
-        let diatrictName = res.countyName;
-        let retSelIdx = 0;
-        for (var i = 0; i < commonCityData.cityData.length; i++) {
-          if (provinceName == commonCityData.cityData[i].name) {
-            let eventJ = {
-              detail: {
-                value: i
-              }
-            };
-            that.bindPickerProvinceChange(eventJ);
-            that.data.selProvinceIndex = i;
-            for (var j = 0; j < commonCityData.cityData[i].cityList.length; j++) {
-              if (cityName == commonCityData.cityData[i].cityList[j].name) {
-                //that.data.selCityIndex = j;
-                eventJ = {
-                  detail: {
-                    value: j
-                  }
-                };
-                that.bindPickerCityChange(eventJ);
-                for (var k = 0; k < commonCityData.cityData[i].cityList[j].districtList.length; k++) {
-                  if (diatrictName == commonCityData.cityData[i].cityList[j].districtList[k].name) {
-                    //that.data.selDistrictIndex = k;
-                    eventJ = {
-                      detail: {
-                        value: k
-                      }
-                    };
-                    that.bindPickerChange(eventJ);
-                  }
-                }
-              }
-            }
+  //   readFromWx: function() {
+  //     let that = this;
+  //     wx.chooseAddress({
+  //       success: function(res) {
+  //         //将微信的地址在地址js中循环，然后渲染展示
+  //         let provinceName = res.provinceName;
+  //         let cityName = res.cityName;
+  //         let diatrictName = res.countyName;
+  //         let retSelIdx = 0;
+  //         for (var i = 0; i < commonCityData.cityData.length; i++) {
+  //           if (provinceName == commonCityData.cityData[i].name) {
+  //             let eventJ = {
+  //               detail: {
+  //                 value: i
+  //               }
+  //             };
+  //             that.bindPickerProvinceChange(eventJ);
+  //             that.data.selProvinceIndex = i;
+  //             for (var j = 0; j < commonCityData.cityData[i].cityList.length; j++) {
+  //               if (cityName == commonCityData.cityData[i].cityList[j].name) {
+  //                 //that.data.selCityIndex = j;
+  //                 eventJ = {
+  //                   detail: {
+  //                     value: j
+  //                   }
+  //                 };
+  //                 that.bindPickerCityChange(eventJ);
+  //                 for (var k = 0; k < commonCityData.cityData[i].cityList[j].districtList.length; k++) {
+  //                   if (diatrictName == commonCityData.cityData[i].cityList[j].districtList[k].name) {
+  //                     //that.data.selDistrictIndex = k;
+  //                     eventJ = {
+  //                       detail: {
+  //                         value: k
+  //                       }
+  //                     };
+  //                     that.bindPickerChange(eventJ);
+  //                   }
+  //                 }
+  //               }
+  //             }
 
-          }
-        }
-        //设置显示
-        that.setData({
-          wxaddress: res,
-        });
-      }
-    })
-  }
+  //           }
+  //         }
+  //         //设置显示
+  //         that.setData({
+  //           wxaddress: res,
+  //         });
+  //       }
+  //     })
+  //   }
 })

@@ -1,138 +1,171 @@
 //app.js
 App({
-  onLaunch: function () {
-    var that = this;    
-    //  获取商城名称
-    // TODO 要用我们的接口替换此处获取商城名
-    wx.request({
-      url: 'https://api.it120.cc/'+ that.globalData.subDomain +'/config/get-value',
-      data: {
-        key: 'mallName'
-      },
+  onLaunch: function() {
+    var userData = {
+      "id": 1,
+      "role": 0,
+      "nickname": "",
+      "email": "getst@test.com",
+      "phone": "1325421231",
+      "avatar": "",
+      "username": "test",
+      "password": "$2a$10$Fl254WSMuiw4ANVoYmyoOOacT6O0buSsbTWuJqGBZlTw2pvUGPdAG",
+      "gender": 0,
+      "birthday": "0001-01-01T08:05:43+08:05",
+      "lastLogin": "0001-01-01T08:05:43+08:05",
+      "defaultAddressId": 0
+    }
+
+    wx.login({
       success: function(res) {
-        if (res.data.code == 0) {
-          wx.setStorageSync('mallName', res.data.data.value);
-        }
+
+        console.log('登陆', res)
       }
     })
+    wx.checkSession({
+      success: function() {
+        console.log('1')
+      },
+      fail: function() {
+        console.log('2')
+      }
+    })
+
+    wx.setStorageSync('user', userData)
+    var that = this;
+    // wx.setStorageSync('defaultAddressId', 111)
+    // //  获取商城名称
+    // // TODO 要用我们的接口替换此处获取商城名
+    // wx.request({
+    //   url: 'https://api.it120.cc/' + that.globalData.subDomain + '/config/get-value',
+    //   data: {
+    //     key: 'mallName'
+    //   },
+    //   success: function(res) {
+    //     if (res.data.code == 0) {
+    //       wx.setStorageSync('mallName', res.data.data.value);
+    //     }
+    //   }
+    // })
     //获取积分赠送规则
-    wx.request({
-      //用户点击好评
-      url: 'https://api.it120.cc/' + that.globalData.subDomain + '/score/send/rule',
-      data: {
-        code: 'goodReputation'
-      },
-      success: function (res) {
-        if (res.data.code == 0) {
-          //赋值好评获赠积分
-          that.globalData.order_reputation_score = res.data.data[0].score;
-        }
-      }
-    })
+    // wx.request({
+    //   //用户点击好评
+    //   url: 'https://api.it120.cc/' + that.globalData.subDomain + '/score/send/rule',
+    //   data: {
+    //     code: 'goodReputation'
+    //   },
+    //   success: function(res) {
+    //     if (res.data.code == 0) {
+    //       //赋值好评获赠积分
+    //       that.globalData.order_reputation_score = res.data.data[0].score;
+    //     }
+    //   }
+    // })
     //WARNING 没看懂
-    wx.request({
-      url: 'https://api.it120.cc/' + that.globalData.subDomain + '/config/get-value',
-      data: {
-        key: 'recharge_amount_min'
-      },
-      success: function (res) {
-        if (res.data.code == 0) {
-          //充值部分
-          that.globalData.recharge_amount_min = res.data.data.value;
-        }
-      }
-    })
+    // wx.request({
+    //   url: 'https://api.it120.cc/' + that.globalData.subDomain + '/config/get-value',
+    //   data: {
+    //     key: 'recharge_amount_min'
+    //   },
+    //   success: function(res) {
+    //     if (res.data.code == 0) {
+    //       //充值部分
+    //       that.globalData.recharge_amount_min = res.data.data.value;
+    //     }
+    //   }
+    // })
     // 获取砍价设置
     // TODO 第一阶段，可以不要砍价功能
-    wx.request({
-      url: 'https://api.it120.cc/' + that.globalData.subDomain + '/shop/goods/kanjia/list',
-      data: {},
-      success: function (res) {
-        if (res.data.code == 0) {
-          that.globalData.kanjiaList = res.data.data.result;
-        }
-      }
-    })
+    // wx.request({
+    //   url: 'https://api.it120.cc/' + that.globalData.subDomain + '/shop/goods/kanjia/list',
+    //   data: {},
+    //   success: function(res) {
+    //     if (res.data.code == 0) {
+    //       that.globalData.kanjiaList = res.data.data.result;
+    //     }
+    //   }
+    // })
     // 判断是否登录
-    let token = wx.getStorageSync('token');
-    if (!token) {
-      that.goLoginPageTimeOut()
-      return
-    }
+    // let token = wx.getStorageSync('token');
+    // if (!token) {
+    //   that.goLoginPageTimeOut()
+    //   return
+    // }
+
     // 检测Token是否超时
-    wx.request({
-      url: 'https://api.it120.cc/' + that.globalData.subDomain + '/user/check-token',
-      data: {
-        token: token
-      },
-      success: function (res) {
-        if (res.data.code != 0) {
-          wx.removeStorageSync('token')
-          that.goLoginPageTimeOut()
-        }
-      }
-    })
+    // wx.request({
+    //   url: 'https://api.it120.cc/' + that.globalData.subDomain + '/user/check-token',
+    //   data: {
+    //     token: token
+    //   },
+    //   success: function(res) {
+    //     if (res.data.code != 0) {
+    //       wx.removeStorageSync('token')
+    //       that.goLoginPageTimeOut()
+    //     }
+    //   }
+    // })
   },
   //给用户延迟发送模板消息
-  sendTempleMsg: function (orderId, trigger, template_id, form_id, page, postJsonString){
+  sendTempleMsg: function(orderId, trigger, template_id, form_id, page, postJsonString) {
     var that = this;
-    wx.request({
-      url: 'https://api.it120.cc/' + that.globalData.subDomain + '/template-msg/put',
-      method:'POST',
-      header: {
-        'content-type': 'application/x-www-form-urlencoded'
-      },
-      data: {
-        token: wx.getStorageSync('token'),
-        type:0,
-        module:'order',
-        business_id: orderId,
-        trigger: trigger,
-        template_id: template_id,
-        form_id: form_id,
-        url:page,
-        postJsonString: postJsonString
-      },
-      success: (res) => {
-        //console.log('*********************');
-        //console.log(res.data);
-        //console.log('*********************');
-      }
-    })
+    // wx.request({
+    //   url: 'https://api.it120.cc/' + that.globalData.subDomain + '/template-msg/put',
+    //   method: 'POST',
+    //   header: {
+    //     'content-type': 'application/x-www-form-urlencoded'
+    //   },
+    //   data: {
+    //     token: wx.getStorageSync('token'),
+    //     type: 0,
+    //     module: 'order',
+    //     business_id: orderId,
+    //     trigger: trigger,
+    //     template_id: template_id,
+    //     form_id: form_id,
+    //     url: page,
+    //     postJsonString: postJsonString
+    //   },
+    //   success: (res) => {
+    //     //console.log('*********************');
+    //     //console.log(res.data);
+    //     //console.log('*********************');
+    //   }
+    // })
   },
   // 给用户立即发送模板消息
-  sendTempleMsgImmediately: function (template_id, form_id, page, postJsonString) {
+  sendTempleMsgImmediately: function(template_id, form_id, page, postJsonString) {
     var that = this;
-    wx.request({
-      url: 'https://api.it120.cc/' + that.globalData.subDomain + '/template-msg/put',
-      method: 'POST',
-      header: {
-        'content-type': 'application/x-www-form-urlencoded'
-      },
-      data: {
-        token: wx.getStorageSync('token'),
-        type: 0,
-        module: 'immediately',
-        template_id: template_id,
-        form_id: form_id,
-        url: page,
-        postJsonString: postJsonString
-      },
-      success: (res) => {
-        console.log(res.data);
-      }
-    })
-  },  
-  // 跳转到授权页
-  goLoginPageTimeOut: function () {
-    setTimeout(function(){
-      wx.navigateTo({
-        url: "/pages/authorize/index"
-      })
-    }, 1000)    
+    // wx.request({
+    //   url: 'https://api.it120.cc/' + that.globalData.subDomain + '/template-msg/put',
+    //   method: 'POST',
+    //   header: {
+    //     'content-type': 'application/x-www-form-urlencoded'
+    //   },
+    //   data: {
+    //     token: wx.getStorageSync('token'),
+    //     type: 0,
+    //     module: 'immediately',
+    //     template_id: template_id,
+    //     form_id: form_id,
+    //     url: page,
+    //     postJsonString: postJsonString
+    //   },
+    //   success: (res) => {
+    //     console.log(res.data);
+    //   }
+    // })
   },
-  globalData:{
-    userInfo:null,
+  // 跳转到授权页
+  goLoginPageTimeOut: function() {
+    // setTimeout(function() {
+    //   wx.navigateTo({
+    //     url: "/pages/authorize/index"
+    //   })
+    // }, 1000)
+  },
+  globalData: {
+    userInfo: null,
     subDomain: "tz", // 如果你的域名是： https://api.it120.cc/abcd 那么这里只要填写 abcd
     version: "4.0.0",
     shareProfile: '百款精品商品，总有一款适合您' // 首页转发的时候话术

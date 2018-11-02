@@ -10,6 +10,8 @@ Page({
       noSelect: false,
       list: []
     },
+    newList :[],
+    newShopList:[],
     delBtnWidth: 120, //删除按钮宽度单位（rpx）
   },
 
@@ -35,19 +37,54 @@ Page({
     });
   },
   onLoad: function() {
+    wx.showLoading({"mask": true})
     this.initEleWidth();
-    this.onShow();
+    // this.onShow();
   },
   onShow: function() {
+    
+    let that=this
     var shopList = [];
-    // 获取购物车数据
-    var shopCarInfoMem = wx.getStorageSync('shopCarInfo');
-    if (shopCarInfoMem && shopCarInfoMem.shopList) {
-      shopList = shopCarInfoMem.shopList
-    }
-    this.data.goodsList.list = shopList;
-    //编辑结算购物车的信息
-    this.setGoodsList(this.getSaveHide(), this.totalPrice(), this.allSelect(), this.noSelect(), shopList);
+    // 获取购物车数据  /cart/query
+    wx.request({
+      url: 'http://47.99.112.182:4030/v1/' + 'cart/query',
+      method:"POST",
+      data: {
+        userId: wx.getStorageSync('user').id
+      },
+      success: function(res) {
+        wx.hideLoading()
+        if (res.data.code == 0) {
+          that.setData({
+            newShopList : res.data.data
+          }) 
+        }
+        
+        if (that.data.newShopList&&that.data.newShopList.length > 0) {
+
+          that.data.goodsList.list = that.data.newShopList;
+          for (var i = 0; i < that.data.goodsList.list.length; i++) {
+            var normData = ''
+            for (var j = 0; j < that.data.goodsList.list[i].sku.normInfo.length; j++) {
+              normData = normData + that.data.goodsList.list[i].sku.normInfo[j] + ' '
+            }
+            that.data.goodsList.list[i].sku.normData = normData
+          }
+          wx.setStorageSync('shopCarInfo', that.data.goodsList.list)
+          //编辑结算购物车的信息
+          that.setGoodsList(that.getSaveHide(), that.totalPrice(), that.allSelect(), that.noSelect(), that.data.goodsList.list);
+        } else if (!that.data.newShopList){
+          that.setGoodsList(that.getSaveHide(), that.totalPrice(), that.allSelect(), that.noSelect(), []);
+        }
+      }
+    })
+    // var shopCarInfoMem = wx.getStorageSync('shopCarInfo');
+    // if (shopCarInfoMem && shopCarInfoMem.shopList) {
+    //   shopList = shopCarInfoMem.shopList
+    // }
+    
+   
+    
   },
   //点击去逛逛
   toIndexPage: function() {
@@ -109,11 +146,26 @@ Page({
   },
   //删除项目
   delItem: function(e) {
+
     var index = e.currentTarget.dataset.index;
+    
     var list = this.data.goodsList.list;
     list.splice(index, 1);
+    删除购物车项目
+    wx.request({
+      //获取商品库存详情
+      url: 'http://47.99.112.182:4030/v1/' + 'cart/' + list[index].id,
+      method: 'DELETE',
+      data: {
+        // id: list[index].id
+      },
+      success: function(res) {
+
+      },
+    })
     //重新编辑结算的购物车信息
     this.setGoodsList(this.getSaveHide(), this.totalPrice(), this.allSelect(), this.noSelect(), list);
+    this.onShow()
   },
   //点击订单勾选框后事件
   selectTap: function(e) {
@@ -121,6 +173,17 @@ Page({
     var list = this.data.goodsList.list;
     if (index !== "" && index != null) {
       list[parseInt(index)].active = !list[parseInt(index)].active;
+      let newList=[]
+      list.forEach(function (value) {
+        if (value.active == true){
+          newList.push(value)
+        }
+         ;
+      })
+      this.setData({
+        newList: newList
+      })
+      // console.log(newList)
       this.setGoodsList(this.getSaveHide(), this.totalPrice(), this.allSelect(), this.noSelect(), list);
     }
     // console.log(list)
@@ -133,8 +196,8 @@ Page({
     for (var i = 0; i < list.length; i++) {
       var curItem = list[i];
       if (curItem.active) {
-        total += parseFloat(curItem.price) * curItem.number;
-        totalScoreToPay += curItem.score * curItem.number;
+        total += parseFloat(curItem.product.shopPrice) * curItem.number;
+        // totalScoreToPay += curItem.score * curItem.number;
       }
     }
     this.data.goodsList.totalScoreToPay = totalScoreToPay;
@@ -186,11 +249,11 @@ Page({
     });
     var shopCarInfo = {};
     var tempNumber = 0;
-    shopCarInfo.shopList = list;
+    shopCarInfo.shopList = this.data.newList;
     for (var i = 0; i < list.length; i++) {
       tempNumber = tempNumber + list[i].number
     }
-    shopCarInfo.shopNum = tempNumber;
+    shopCarInfo.shoptotalPriceNum = total;
     wx.setStorage({
       key: "shopCarInfo",
       data: shopCarInfo
@@ -222,15 +285,24 @@ Page({
     if (index !== "" && index != null) {
       // 添加判断当前商品购买数量是否超过当前商品可购买库存
       var carShopBean = list[parseInt(index)];
-      var carShopBeanStores = 0;
+      var carShopBeanStores = 5;
+
+      if (list[parseInt(index)].number < carShopBeanStores) {
+        list[parseInt(index)].number++;
+        that.setGoodsList(that.getSaveHide(), that.totalPrice(), that.allSelect(), that.noSelect(), list);
+      }
+      that.setData({
+        curTouchGoodStore: carShopBeanStores
+      })
+
       wx.request({
-        //获取商品详情
+        //获取商品库存详情
         url: 'https://api.it120.cc/' + app.globalData.subDomain + '/shop/goods/detail',
         data: {
-          id: carShopBean.goodsId
+          id: carShopBean.sku.id
         },
         success: function(res) {
-          carShopBeanStores = res.data.data.basicInfo.stores;
+          carShopBeanStores = res.data.data.inStockCount;
           // console.log(' currnet good id and stores is :', carShopBean.goodsId, carShopBeanStores)
           //如果库存够则++
           if (list[parseInt(index)].number < carShopBeanStores) {
@@ -292,9 +364,27 @@ Page({
      */
     // above codes that remove elements in a for statement may change the length of list dynamically
     //数组过滤筛选
+    var deteleIds = [];
     list = list.filter(function(curGoods) {
+      if (curGoods.active) {
+        deteleIds.push(curGoods.id)
+      }
       return !curGoods.active;
     });
+    deteleIds.forEach((v, i) => {
+      console.log(v)
+      wx.request({ 
+        url: 'http://47.99.112.182:4030/v1/cart/' + v,
+        method: 'DELETE',
+        data: {
+          id: v
+        },
+        success: function(res) {
+
+        },
+      })
+    })
+
     this.setGoodsList(this.getSaveHide(), this.totalPrice(), this.allSelect(), this.noSelect(), list);
   },
   //点击去结算
@@ -330,87 +420,46 @@ Page({
       }
       let carShopBean = shopList[i];
       // 获取价格和库存
-      console.log(shopList[i])
       //对选择的规格尺寸信息是否存在判断
-      if (!carShopBean.propertyChildIds || carShopBean.propertyChildIds == "") {
-        wx.request({
-          url: 'https://api.it120.cc/' + app.globalData.subDomain + '/shop/goods/detail',
-          data: {
-            id: carShopBean.goodsId
-          },
-          success: function(res) {
-            doneNumber++;
-            if (res.data.data.properties) {
-              wx.showModal({
-                title: '提示',
-                content: res.data.data.basicInfo.name + ' 商品已失效，请重新购买',
-                showCancel: false
-              })
-              isFail = true;
-              wx.hideLoading();
-              return;
-            }
-            if (res.data.data.basicInfo.stores < carShopBean.number) {
-              wx.showModal({
-                title: '提示',
-                content: res.data.data.basicInfo.name + ' 库存不足，请重新购买',
-                showCancel: false
-              })
-              isFail = true;
-              wx.hideLoading();
-              return;
-            }
-            if (res.data.data.basicInfo.minPrice != carShopBean.price) {
-              wx.showModal({
-                title: '提示',
-                content: res.data.data.basicInfo.name + ' 价格有调整，请重新购买',
-                showCancel: false
-              })
-              isFail = true;
-              wx.hideLoading();
-              return;
-            }
-            if (needDoneNUmber == doneNumber) {
-              that.navigateToPayOrder();
-            }
+      wx.request({
+        //获取商品库存详情
+        url: 'http://47.99.112.182:4030/v1/sku/' + shopList[i].sku.id,
+        success: function (res) {
+          if (!res.data.data.id) {
+            wx.showModal({
+              title: '提示',
+              content: carShopBean.product.name + ' 商品已失效，请重新购买',
+              showCancel: false
+            })
+            isFail = true;
+            wx.hideLoading();
+            return;
           }
-        })
-      } else {
-        wx.request({
-          url: 'https://api.it120.cc/' + app.globalData.subDomain + '/shop/goods/price',
-          data: {
-            goodsId: carShopBean.goodsId,
-            propertyChildIds: carShopBean.propertyChildIds
-          },
-          success: function(res) {
-            doneNumber++;
-            if (res.data.data.stores < carShopBean.number) {
-              wx.showModal({
-                title: '提示',
-                content: carShopBean.name + ' 库存不足，请重新购买',
-                showCancel: false
-              })
-              isFail = true;
-              wx.hideLoading();
-              return;
-            }
-            if (res.data.data.price != carShopBean.price) {
-              wx.showModal({
-                title: '提示',
-                content: carShopBean.name + ' 价格有调整，请重新购买',
-                showCancel: false
-              })
-              isFail = true;
-              wx.hideLoading();
-              return;
-            }
-            if (needDoneNUmber == doneNumber) {
-              that.navigateToPayOrder();
-            }
+          if (carShopBean.sku.inStockCount > res.data.data.inStockCount) {
+            wx.showModal({
+              title: '提示',
+              content: carShopBean.product.name + ' 库存不足，请重新购买',
+              showCancel: false
+            })
+            isFail = true;
+            wx.hideLoading();
+            return;
           }
-        })
-      }
-
+          if (carShopBean.product.shopPrice != res.data.data.price) {
+            wx.showModal({
+              title: '提示',
+              content: carShopBean.product.name + ' 价格有调整，请重新购买',
+              showCancel: false
+            })
+            isFail = true;
+            wx.hideLoading();
+            return;
+          }
+          
+            that.navigateToPayOrder();
+          
+        }})
+      
     }
   },
   //跳转套支付页面
